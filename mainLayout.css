@@ -1,0 +1,115 @@
+﻿#navigation{
+	width:140px
+}
+
+#navigation table{
+	width:100%
+}
+
+#navigation input{
+	width:100%
+}
+
+#content{
+	background-color:gray;
+	padding: 0px;
+	position: absolute;
+}
+
+#checkerboard {
+	border: 1px solid gray;
+	padding: 0px;
+	width: 400px;
+	border-spacing: 0px;
+}
+
+#checkerboard td {
+	margin: 0px;
+	border: 0px;
+	background-image: none;
+}
+
+#checkerboard td.white {
+	background-color: white;
+}
+
+#checkerboard td.black {
+	background-color: gray;
+}
+
+#checkerboard td.black-checker {
+
+	background-size: 100%;
+}
+
+#checkerboard td.red-checker {
+
+	background-size: 100%;
+}
+
+#checkerboard td.black-checker.king {
+
+	background-size: 100%;
+}
+
+#checkerboard td.red-checker.king {
+
+	background-size: 100%;
+}
+
+/*
+refactored checkers css, divs inside each td for checkerboard
+*/
+div.checker {
+	background-size: 100%;
+	display: inline-block;
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+div.red-checker {
+	background-image: url(graphics/red-piece.png);
+}
+
+div.black-checker {
+	background-image: url(graphics/black-piece.png);
+}
+
+div.red-checker.king {
+	background-image: url(graphics/red-king.png);
+}
+
+div.black-checker.king {
+	background-image: url(graphics/black-king.png);
+}
+
+td.drop-hover {
+	background-color: '#ccc';
+}
+
+#turn {
+	color: white;
+	text-align: center;
+	font-size: 20px;
+}
+
+#turn.black {
+	background-color: black;
+}
+
+#turn.red {
+	background-color: red;
+}
+
+#arrow-ui {
+	/* overlay canvas on top of checkerboard */
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	width: 400px;
+	height: 400px;
+	z-index: 5;
+	padding: 0px;
+	pointer-events: none;
+}

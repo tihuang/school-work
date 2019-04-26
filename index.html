@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+
+<!--
+  COLLABORATORS:
+  I did not discuss PS2 with anyone.
+-->
+<html>
+
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+<title>Checkerboard</title>
+
+<!-- Load style sheets -->
+<link rel="stylesheet" type="text/css" href="mainLayout.css" />
+
+<!-- Load any supplemental Javascript libraries here -->
+<script type="text/javascript" src="external_js/jquery-1.9.0.min.js"></script>
+<script type="text/javascript" src="external_js/jquery-ui-1.10.2.custom.min.js"></script>
+<script type="text/javascript" src="checker.js"></script>
+<script type="text/javascript" src="boardEvent.js"></script>
+<script type="text/javascript" src="board.js"></script>
+<script type="text/javascript" src="rules.js"></script>
+
+<script type="text/javascript">
+
+//This script extracts parameters from the URL
+//from jquery-howto.blogspot.com
+
+    $.extend({
+        getUrlVars : function() {
+            var vars = [], hash;
+            var hashes = window.location.href.slice(
+                    window.location.href.indexOf('?') + 1).split('&');
+            for ( var i = 0; i < hashes.length; i++) {
+                hash = hashes[i].split('=');
+                vars.push(hash[0]);
+                vars[hash[0]] = hash[1];
+            }
+            return vars;
+        },
+        getUrlVar : function(name) {
+            return $.getUrlVars()[name];
+        }
+    });
+
+    var DEFAULT_BOARD_SIZE = 8;
+
+    //data model
+    var board;
+    var rules;
+    var whoseTurn = "black";	
+	var undo = new Array();
+	var redo = new Array();
+	
+	var Move = function(checker, from_row, from_col, to_row, to_col, boardState, removed) {
+		this.boardState = new Array();
+		for (var i = 0; i < boardState.length; i++) {
+			var savechecker = new Checker(boardState[i].color, boardState[i].isKing);
+			savechecker.row = boardState[i].row;
+			savechecker.col = boardState[i].col;
+			this.boardState.push(savechecker);
+		}
+		
+		this.from_row = from_row;
+		this.to_row = to_row;
+		this.from_col = from_col;
+		this.to_col = to_col;
+		this.removed = removed;
+		
+		if (checker != undefined) {
+			this.checker = new Checker(checker.color, checker.isKing);
+			this.checker.row = checker.row;
+			this.checker.col = checker.col;
+		}
+		else {
+			this.checker = checker;
+		}
+		
+		//return new Move(checker, from_row, from_col, to_row, to_col, boardState);
+		return {'checker': this.checker, 'from_row': this.from_row, 'from_col': this.from_col, 'to_row': this.to_row, 'to_col': this.to_col, 'boardState': this.boardState, 'removed': this.removed};
+	};
+
+
+    var directionOf = function(color) {
+      if (color == "black") {
+        return -1;
+      }
+      return 1;
+    }
+
+    // Fill in this function to toggle the display for whose turn
+    // The color parameter should be either "black" or "red"
+    var toggleTurn = function(color) {
+	// Your code here
+		if (color == 'red') {
+			$('#whoseTurn').text('Black');
+			$('#turn').removeClass('red').addClass('black');
+			whoseTurn = 'black';
+		}
+		if (color == 'black') {
+			$('#whoseTurn').text('Red');
+			$('#turn').removeClass('black').addClass('red');
+			whoseTurn = 'red'
+		}
+    }
+
+
+
+    // This allows the Javascript code inside this block to only run when the page
+    // has finished loading in the browser.
+    $(document).ready(function() {
+
+	
+        if ($.getUrlVar('size') && $.getUrlVar('size') >= 6) {
+            board = new Board($.getUrlVar('size'));
+        } else {
+            board = new Board(DEFAULT_BOARD_SIZE);
+        }
+		
+				
+		rules = new Rules(board);
+
+		var makeDraggable = function(checkerdiv) {
+			var moved = false;
+
+			$(checkerdiv).draggable({
+				revert: 'invalid', 
+				opacity: .35, 
+				revertDuration: 0,
+				containment: '#checkerboard',
+				start: function() {
+				
+					var rowIndex = $(checkerdiv).closest('tr').index();
+					var colIndex = $(checkerdiv).closest('td').index();
+					var checker = board.getCheckerAt(rowIndex, colIndex);
+			
+					var turnDirection = directionOf(whoseTurn);
+					var playerDirection = directionOf(checker.color);
+
+					if (playerDirection == turnDirection) {	
+						var validMoves = rules.validMovesFor(checker, playerDirection );	
+				
+						for (var i = 0; i < validMoves.length; i++) {
+							var to_row = validMoves[i].to_row;
+							var to_col = validMoves[i].to_col;
+							var tile = tileAt(to_row, to_col);
+							//console.log(tile);
+							$(tile).droppable("enable");
+							$(tile).on("drop", function() {
+								var to_row = $(this).closest('tr').index();
+								var to_col = $(this).closest('td').index();
+								var result = rules.makeMove(checker, turnDirection, playerDirection, to_row, to_col);
+								if (result) {
+									$(this).html(new CHECKER(checker.color, checker.isKing));
+									$(checkerdiv).remove();
+									$('.ui-droppable').droppable('disable');	
+									$('.ui-droppable').on('drop', function() {});
+									var move = new Move(checker, results.from_row, results.from_col, results.to_row, results.to_col, board.getAllCheckers(), results.remove);
+			undo.push(move);
+
+								}
+							});
+						}
+					}
+					
+				}, stop: function() {
+					$('.ui-droppable').droppable('disable');	
+					$('.ui-droppable').on('drop', function() {});
+				},
+			});
+			return checkerdiv;
+		}
+		
+		var TILE_SIZE = 400/board.boardSize;
+		var RED_CHECKER = function() {
+			var div = $('<div>').addClass('red-checker').removeClass('king').addClass('checker').addClass('red');
+			return makeDraggable(div);
+		};
+		var BLACK_CHECKER = function() {
+			var div = $('<div>').addClass('black-checker').removeClass('king').addClass('checker').addClass('black');
+			return makeDraggable(div);
+		};
+		var RED_KING = function() {
+			var div = $('<div>').addClass('red-checker').addClass('king').addClass('checker').addClass('red');
+			return makeDraggable(div);
+		};
+		var BLACK_KING = function() {
+			var div = $('<div>').addClass('black-checker').addClass('king').addClass('checker').addClass('black');
+			return makeDraggable(div);
+		};
+		
+
+		var CHECKER = function(color, isKing) {
+			if (color == 'red') {
+				if (isKing) {
+					return new RED_KING();
+				} else {
+					return new RED_CHECKER();
+				}
+			}
+			if (color == 'black') {
+				if (isKing) {
+					return new BLACK_KING();
+				} else {
+					return new BLACK_CHECKER();
+				}
+			}
+
+		}
+			
+     	// Initialize checkerboard
+		for (var i = 0; i < board.boardSize; i++) {
+			var tr = $('<tr>');
+			// set height of each tile
+			tr.css('height', TILE_SIZE);
+			// create a TD object for each tile
+			for (var j = 0; j < board.boardSize; j++) {
+				var td = $('<td>');
+				if ( ( i + j ) % 2 == 0 ) {
+					td.attr('class', 'white');
+				} else {
+					td.attr('class', 'black');
+					td.droppable({
+
+						tolerance: 'pointer',
+						disabled: 'true',
+						accept: '.checker',
+
+					});
+				}
+				tr.append(td);
+			}
+			$('#checkerboard').append(tr);
+		}
+		
+		// gets the $(<td>) element at row, col
+		var tileAt = function(row, column) {
+			var thisRow = $("#checkerboard > tbody > tr")[row];
+			return $($(thisRow).children()[column]);
+		};
+		
+		// canvas functions
+		var canvas = document.getElementById('arrow-ui');
+		canvas.width = 400;
+		canvas.height = 400;
+		var ctxt = canvas.getContext('2d');
+		var drawArrow = function (fromRow, fromCol, toRow, toCol) {
+			ctxt.clearRect(0, 0, canvas.width, canvas.height);
+			
+			// draw arrow head
+			drawTriangle(fromRow, fromCol, toRow, toCol);
+			
+			// draw the line
+			ctxt.beginPath();
+			ctxt.moveTo(fromCol * TILE_SIZE + TILE_SIZE/2, fromRow * TILE_SIZE + TILE_SIZE/2); 
+			ctxt.lineTo(toCol * TILE_SIZE + TILE_SIZE/2, toRow * TILE_SIZE + TILE_SIZE/2);
+			
+			ctxt.strokeStyle = '#FFFF33';
+			ctxt.stroke();
+		};
+		
+		// helper function for drawArrow
+		var drawTriangle = function(fromRow, fromCol, toRow, toCol) {
+					
+			// find the angle
+			var deltaY = toRow - fromRow;
+			var deltaX = toCol - fromCol;
+			var angle = Math.atan2(deltaY,deltaX) + Math.PI/2; // add PI/2 because atan2 gives angle relative to positive x, not positive y
+			
+			
+			// transformation
+			ctxt.save();
+			ctxt.translate(toCol * TILE_SIZE + TILE_SIZE/2, toRow * TILE_SIZE + TILE_SIZE/2);
+			ctxt.rotate(angle);
+			ctxt.scale(1/board.boardSize, 1/board.boardSize);
+
+			// draw outline of triangle
+			ctxt.beginPath();
+			ctxt.moveTo(-80, 80); 
+			ctxt.lineTo(80, 80);
+			ctxt.lineTo(0, -80);
+			ctxt.closePath();
+			ctxt.fillStyle   = '#FFFF33';
+			ctxt.strokeStyle = '#FFFF33';
+
+			// stroke and reset
+			ctxt.fill();
+			ctxt.stroke();
+			ctxt.restore();
+		}
+		
+        board.addEventListener('add',function (e) {
+			tileAt(e.details.row, e.details.col).addClass(e.details.checker.color + '-checker');
+			if (e.details.checker.isKing) {
+				tileAt(e.details.row, e.details.col).addClass('king');
+			}
+			// after refactor
+			if (e.details.checker.color == 'red') {
+				if (e.details.checker.isKing) {
+					tileAt(e.details.row, e.details.col).html(new RED_KING());
+				} else {
+					tileAt(e.details.row, e.details.col).html(new RED_CHECKER());
+				}
+			}
+			if (e.details.checker.color == 'black') {
+				if (e.details.checker.isKing) {
+					tileAt(e.details.row, e.details.col).html(new BLACK_KING());
+				} else {
+					tileAt(e.details.row, e.details.col).html(new BLACK_CHECKER());
+				}
+			}
+		},true);
+
+    	board.addEventListener('move',function (e) {
+			// remove class from old tile
+			tileAt(e.details.fromRow, e.details.fromCol).removeClass(e.details.checker.color + '-checker king').html('');
+			// add relevant classes to new tile on board
+			tileAt(e.details.toRow, e.details.toCol).addClass(e.details.checker.color + '-checker');
+			if (e.details.checker.isKing) {
+				tileAt(e.details.toRow, e.details.toCol).addClass('king');
+			}
+			
+			// add relevant div checker image to new tile on board
+			if (e.details.checker.color == 'red') {
+				if (e.details.checker.isKing) {
+					tileAt(e.details.toRow, e.details.toCol).html(new RED_KING());
+				} else {
+					tileAt(e.details.toRow, e.details.toCol).html(new RED_CHECKER());
+				}
+			}
+			if (e.details.checker.color == 'black') {
+				if (e.details.checker.isKing) {
+					tileAt(e.details.toRow, e.details.toCol).html(new BLACK_KING());
+				} else {
+					tileAt(e.details.toRow, e.details.toCol).html(new BLACK_CHECKER());
+				}
+			}
+			
+			
+			toggleTurn(e.details.checker.color);
+			drawArrow(e.details.fromRow, e.details.fromCol, e.details.toRow, e.details.toCol);
+			//console.log(move);
+			redo = [];
+			
+    	},true);
+
+        board.addEventListener('remove', function(e) {
+        	tileAt(e.details.row, e.details.col).removeClass('king black-checker red-checker red-checker')
+												.html('');
+        }, true);
+
+        board.addEventListener('promote',function (e) {
+			
+    		tileAt(e.details.row, e.details.col).addClass('king')
+												.html('');
+			if (e.details.color == 'red') {
+				tileAt(e.details.row, e.details.col).html(new RED_KING());
+			} else {
+				tileAt(e.details.row, e.details.col).html(new BLACK_KING());			
+			}
+    	},true);
+
+        // add functionality to newgame button
+        $("#btnNewGame").click(function(evt) {
+			// remove all classes from old checkerboards
+			$('#checkerboard > tbody > tr > td').each(function(idx, value) {
+				$(value).removeClass('king black-checker red-checker')
+			});
+			// make sure it is black's turn
+			toggleTurn('red');
+			// clear canvas
+			ctxt.clearRect(0, 0, canvas.width, canvas.height);
+			board.prepareNewGame();
+			undo = new Array();
+			undo.push(new Move(null, null, null, null, null, board.getAllCheckers()));
+			redo = [];
+			
+        });
+
+		// add functionality to automove button
+        $("#btnAutoMove").click(function(evt) {
+          var playerColor = whoseTurn;
+          var playerDirection = directionOf(playerColor);
+          var result = rules.makeRandomMove(playerColor, playerDirection);
+          if (result != null) {
+            toggleTurn();
+          }
+        });
+
+		// add undo functionality
+		$('#btnUndo').click(function(evt) {
+			if (undo.length == 1) 
+				return;
+			// remove last element
+			var lastMove = undo.pop();
+			redo.push(lastMove);
+			var previousState = undo[undo.length-1];
+			board.clear();
+			for (var i = 0; i < previousState.boardState.length; i++) {
+				var checker = new Checker(previousState.boardState[i].color, previousState.boardState[i].isKing);
+				checker.row = previousState.boardState[i].row;
+				checker.col = previousState.boardState[i].col;
+				board.add(checker, checker.row, checker.col);
+				if (checker.isKing) {
+					board.promote(checker);
+				}
+			}
+			for (var i = 0; i < previousState.removed.length; i++) {
+				board.remove(previousState.checker);
+			}
+			
+
+
+			if (previousState.checker != undefined) {
+				toggleTurn(previousState.checker.color);
+				}
+			else {
+				toggleTurn('red'); // first move of game
+				}
+		
+			drawArrow(lastMove.to_row, lastMove.to_col, lastMove.from_row, lastMove.from_col);
+		});
+		
+		// add redo functionality
+
+		$('#btnRedo').click(function(evt) {
+			if (redo.length == 0) {
+				return;
+			}
+			
+			var lastMove = redo.pop();
+
+			undo.push(lastMove);
+			var previousState = undo[undo.length-1];
+			if (redo.length > 0) {
+				previousState = redo[redo.length-1];
+			}
+
+			board.clear();
+			for (var i = 0; i < lastMove.boardState.length; i++) {
+				var checker = lastMove.boardState[i];
+				board.add(checker, checker.row, checker.col);
+				if (checker.isKing) {
+					board.promote(checker);
+				}
+			}
+			
+						
+			toggleTurn(previousState.checker.color);
+		
+			drawArrow(lastMove.from_row, lastMove.from_col, lastMove.to_row, lastMove.to_col);
+			
+		});
+		
+		
+        board.prepareNewGame();
+		var initBoardState = board.getAllCheckers();
+		undo.push(new Move(null, null, null, null, null, initBoardState));
+		
+
+    });
+	
+	progress = function() {
+		for (var i = 0; i < 50;  i++) {
+          var playerColor = whoseTurn;
+          var playerDirection = directionOf(playerColor);
+          var result = rules.makeRandomMove(playerColor, playerDirection);
+          if (result != null) {
+            toggleTurn();
+          }
+		}
+	}
+</script>
+
+
+</head>
+
+<body>
+
+<table id="mainTable">
+    <tr>
+        <td id="navigation">
+          <table>
+			  <tr><td id='turn' class='black'><span id='whoseTurn' class='black'>Black</span> Turn</td></tr>
+              <tr><td><input id="btnNewGame" type="button" name="new" value="New Game"/></td></tr>
+              <tr><td><input id="btnAutoMove" type="button" name="auto" value="Auto Move"/></td></tr>
+              <tr><td><input id="btnUndo" type="button" name="undo" value="Undo"/></td></tr>
+			  <tr><td><input id="btnRedo" type="button" name="redo" value="Redo"/></td></tr>
+
+            </table>
+        </td>
+
+        <td id="content">
+			
+            <table id="checkerboard">
+			</table>
+			
+			<canvas id="arrow-ui">
+			</canvas>
+        </td>
+    </tr>
+
+   </table>
+
+</body>
+
+</html>
